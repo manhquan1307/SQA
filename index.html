@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Báo cáo hệ thống CICB & Easy SmartOTP</title>
+  <style>
+    :root{--bg:#f7f8fb;--card:#ffffff;--accent:#0b5cff;--muted:#6b6f76}
+    body{font-family:Inter, Roboto, 'Segoe UI', Arial, sans-serif;line-height:1.6;margin:0;background:var(--bg);color:#111}
+    header{background:linear-gradient(90deg,#0b5cff22,transparent);padding:28px 20px;border-bottom:1px solid #e6e9ef}
+    .container{max-width:1000px;margin:24px auto;padding:0 18px}
+    h1{font-size:22px;margin:0 0 6px}
+    p.lead{margin:4px 0 18px;color:var(--muted)}
+    .card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(12,24,48,0.06);margin-bottom:18px}
+    nav.toc{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    nav.toc a{background:#eef3ff;padding:8px 12px;border-radius:8px;color:var(--accent);text-decoration:none;font-weight:600}
+    h2{font-size:18px;margin-top:0}
+    pre{background:#0b1220;color:#e6eef8;padding:12px;border-radius:8px;overflow:auto}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{border:1px solid #eef0f4;padding:8px;text-align:left;font-size:14px}
+    th{background:#fbfcff}
+    footer{font-size:13px;color:var(--muted);text-align:center;padding:18px}
+    .small{font-size:13px;color:var(--muted)}
+    .kbd{display:inline-block;background:#111;color:#fff;padding:2px 8px;border-radius:6px;font-size:13px}
+  </style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <h1>Báo cáo hệ thống CICB &amp; Easy SmartOTP</h1>
+    <p class="lead">Tài liệu mô tả chi tiết quy trình đăng ký, kích hoạt và xác thực Smart OTP giữa CICB Web và ứng dụng Easy SmartOTP (Mobile).</p>
+  </div>
+</header>
+<main class="container">
+  <section class="card">
+    <h2>1. Giới thiệu kỹ thuật</h2>
+    <p>Tài liệu này tập trung vào các khía cạnh <strong>kỹ thuật</strong> và <strong>chất lượng phần mềm</strong> của hệ thống CICB Smart OTP và ứng dụng Easy SmartOTP, bao gồm kiến trúc bảo mật, giao thức, chuẩn OTP, khả năng mở rộng, tính tin cậy và chất lượng hệ thống.</p>
+  </section>
+
+  <section class="card">
+    <h2>2. Kiến trúc hệ thống & Giao tiếp kỹ thuật</h2>
+    <h3>2.1 Thành phần kỹ thuật</h3>
+    <ul>
+      <li><strong>CICB Web</strong>: UI + API client, sử dụng HTTPS/TLS 1.2+ để giao tiếp backend.</li>
+      <li><strong>CICB Smart OTP Backend</strong>: service sinh QR (secret), xác thực OTP, log bảo mật, kiểm soát tần suất.</li>
+      <li><strong>Easy SmartOTP Mobile</strong>: ứng dụng native (iOS/Android) sinh mã TOTP offline theo RFC 6238.</li>
+    </ul>
+
+    <h3>2.2 Giao thức Smart OTP</h3>
+    <pre>Payload QR (theo chuẩn otpauth URL):
+otpauth://totp/{issuer}:{account}?secret=BASE32&digits=6&algorithm=SHA1&period=30
+    </pre>
+
+    <h3>2.3 Thuật toán TOTP (RFC 6238)</h3>
+    <pre>OTP = Truncate( HMAC_SHA1( secret_key, floor(timestamp / 30s) ) )
+    </pre>
+
+    <p>Điều này đảm bảo:</p>
+    <ul>
+      <li>OTP không phụ thuộc Internet.</li>
+      <li>Độ bảo mật cao dựa trên secret key duy nhất.</li>
+      <li>Server và mobile sinh OTP giống nhau khi thời gian đồng bộ.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>3. Chất lượng phần mềm & Tiêu chuẩn đảm bảo</h2>
+    <h3>3.1 Bảo mật (Security)</h3>
+    <ul>
+      <li>Sử dụng secret key tối thiểu 160-bit mã hóa BASE32.</li>
+      <li>Secret lưu trên mobile trong Keychain (iOS) hoặc Android Keystore.</li>
+      <li>Server bảo vệ secret bằng encryption + hạn chế quyền truy cập.</li>
+      <li>API CICB bắt buộc HTTPS/TLS 1.2+.</li>
+      <li>Cơ chế khóa tài khoản sau số lần nhập OTP sai.</li>
+    </ul>
+
+    <h3>3.2 Tính sẵn sàng (Availability)</h3>
+    <ul>
+      <li>Mobile sinh OTP offline → không phụ thuộc uptime server OTP.</li>
+      <li>Backend OTP chỉ cần hoạt động lúc xác thực giao dịch.</li>
+      <li>Server cho phép lệch thời gian ±1 step giảm lỗi do lệch clock.</li>
+    </ul>
+
+    <h3>3.3 Khả năng mở rộng (Scalability)</h3>
+    <ul>
+      <li>Xác thực OTP nhẹ (HMAC) → hỗ trợ hàng trăm nghìn giao dịch/giây.</li>
+      <li>Không yêu cầu lưu lịch sử OTP → giảm tải DB.</li>
+      <li>Có thể scale backend OTP theo chiều ngang (stateless).</li>
+    </ul>
+
+    <h3>3.4 Tính tin cậy (Reliability)</h3>
+    <ul>
+      <li>Mobile hoạt động kể cả khi mất mạng.</li>
+      <li>TOTP đảm bảo tính quyết định: cùng secret & timestamp → OTP 100% giống.</li>
+      <li>Kiểm soát thời gian đồng bộ giúp giảm lỗi sai OTP.</li>
+    </ul>
+
+    <h3>3.5 Khả năng kiểm thử (Testability)</h3>
+    <ul>
+      <li>Có thể mock secret key để tạo OTP cố định cho test tự động.</li>
+      <li>Các test case UI, bảo mật, chức năng đã được chuẩn hóa.</li>
+      <li>Hỗ trợ test đồng bộ thời gian, test sai mã, test multi-device.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>4. Luồng kỹ thuật chi tiết</h2>
+    <h3>4.1 Luồng đăng ký Smart OTP</h3>
+    <pre>User → CICB Web → yêu cầu QR
+CICB Backend → sinh secret & QR → gửi Web
+Mobile → quét QR → lưu secret → sinh TOTP
+Server: cập nhật trạng thái kích hoạt
+    </pre>
+
+    <h3>4.2 Luồng xác thực giao dịch</h3>
+    <pre>1. User nhập OTP vào CICB Web
+2. Backend lấy secret tương ứng
+3. Backend sinh TOTP theo timestamp
+4. So sánh → xác thực hợp lệ/không hợp lệ
+    </pre>
+  </section>
+
+  <section class="card">
+    <h2>5. Đánh giá rủi ro và biện pháp kiểm soát</h2>
+    <table>
+      <thead><tr><th>Rủi ro</th><th>Mức độ</th><th>Biện pháp</th></tr></thead>
+      <tbody>
+        <tr><td>Lộ secret key</td><td>Cao</td><td>Mã hóa lưu trữ, quyền truy cập hạn chế, không gửi qua mạng</td></tr>
+        <tr><td>Lệch thời gian server-client</td><td>Trung bình</td><td>Đồng bộ NTP, cho phép ±30s</td></tr>
+        <tr><td>Tấn công brute-force</td><td>Thấp</td><td>Giới hạn số lần nhập sai, khóa tài khoản</td></tr>
+        <tr><td>Dùng lại mã OTP</td><td>Thấp</td><td>Mỗi mã chỉ hiệu lực 30s</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>6. Kết luận kỹ thuật</h2>
+    <p>Giải pháp Smart OTP của CICB áp dụng chuẩn bảo mật quốc tế (RFC 6238), đảm bảo:</p>
+    <ul>
+      <li>Bảo mật cao nhờ secret key độc lập cho từng tài khoản.</li>
+      <li>Hoạt động ổn định, không phụ thuộc kết nối mạng.</li>
+      <li>Dễ mở rộng, hiệu suất cao, phù hợp hệ thống tài chính lớn.</li>
+      <li>Chất lượng phần mềm tốt nhờ các tiêu chí test, logging, bảo mật rõ ràng.</li>
+    </ul>
+  </section>
+  <section class="card">
+    <h2>7. Sơ đồ tổng quan hệ thống (Architecture Overview)</h2>
+    <p>Dưới đây là sơ đồ kiến trúc tổng quan, mô tả mối quan hệ giữa CICB Web, Smart OTP Backend và ứng dụng Easy SmartOTP:</p>
+    <pre>
+          +----------------------+
+          |      CICB Web       |
+          | (Frontend + API UI) |
+          +----------+-----------+
+                     |
+                     | HTTPS (TLS)
+                     v
+          +---------------------------+
+          |   CICB Smart OTP Backend  |
+          | - Sinh QR (Secret Key)    |
+          | - Lưu secret mapping      |
+          | - Xác thực mã OTP         |
+          | - Log bảo mật / khóa TK   |
+          +-----------+---------------+
+                      |
+                      | QR Code (secret)
+                      v
+          +------------------------------+
+          |     Easy SmartOTP Mobile     |
+          | - Quét QR → lưu secret       |
+          | - Tạo OTP theo RFC 6238      |
+          | - Không cần Internet         |
+          +------------------------------+
+    </pre>
+  </section>
+
+  <section class="card">
+    <h2>8. Sơ đồ luồng hoạt động chi tiết (Sequence Flow)</h2>
+
+    <h3>8.1 Luồng đăng ký Smart OTP</h3>
+    <pre>
+User                     CICB Web                OTP Backend                Mobile App
+ |                          |                         |                         |
+ |-- Đăng nhập ------------>|                         |                         |
+ |                          |-- Yêu cầu QR ---------->|                         |
+ |                          |                         |-- Sinh Secret + QR ---->|
+ |                          |<------- QR -------------|                         |
+ |                          |                         |                         |
+ |                          |                                                 |
+ |-- Quét QR --------------------------------------------------------------->|
+ |                                                                           |
+ |                          |                         |<-- App xác nhận ----|
+ |                          |<------- Kích hoạt thành công ------------------|
+ |                          |                         |                         |
+    </pre>
+
+    <h3>8.2 Luồng xác thực giao dịch</h3>
+    <pre>
+User                  CICB Web                 OTP Backend                 Mobile App
+ |                        |                         |                           |
+ |-- Thực hiện GD ------->|                         |                           |
+ |                        |-- Yêu cầu nhập OTP ---->|                           |
+ |                        |                         |                           |
+ |-- Lấy mã OTP (TOTP) ------------------------------------------------------->|
+ |                                                                           |
+ |-- Nhập OTP ----------->|                         |                           |
+ |                        |-- Gửi OTP ------------->|                           |
+ |                        |                         |-- Sinh OTP server-side --|
+ |                        |                         |-- So sánh ----------------|
+ |                        |<------ Xác thực OK -----|                           |
+ |<----- Giao dịch thành công -------------------------------------------------|
+    </pre>
+  </section>
+
+</main>}
+</body>
+</html>
